@@ -47,7 +47,6 @@ async def evaluate_rag_system(test_path="../seed/qna_test.json"):
         res = requests.post(url, json = myobj).json()
         answer, contexts = res['answer'], res['contexts']
 
-        #TODO
         results.append(SingleTurnSample(
             user_input = question,
             response = answer,

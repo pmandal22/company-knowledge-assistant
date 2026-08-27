@@ -13,6 +13,7 @@ wheels/
 .env
 *.env
 !*.env.example
+.zhrc
 
 # OS files
 .DS_Store

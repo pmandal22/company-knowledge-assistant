@@ -19,6 +19,7 @@ pymupdf
 
 #Langchain
 langchain
+langchain-classic
 langchain-openai
 langchain-community<0.4.0
 langchain-text-splitters
@@ -28,9 +29,17 @@ langchain-postgres
 redis
 langchain-redis
 
+#Tracing
+langsmith
+
 #Re-Ranking
 cohere
 langchain-cohere
 
 #Evals
 ragas
+
+mcp
+langchain_mcp_adapters
+streamlit
+langgraph

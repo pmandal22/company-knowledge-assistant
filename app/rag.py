@@ -7,7 +7,8 @@ from langchain_classic.chains.combine_documents import create_stuff_documents_ch
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.docstore.document import Document
 
-from langchain_core.globals import set_llm_cache
+
+from langchain_core .globals import set_llm_cache
 from langchain_redis import RedisSemanticCache
 
 from .utils import get_vector_store
@@ -32,20 +33,23 @@ PROMPT = ChatPromptTemplate.from_messages([
      "Rule: Prefer the most recent policy by effective date.")
 ])
 
-
 REDIS_URL = os.getenv("REDIS_URL")
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-# Lower distance_threshold = stricter match (requires higher similarity for a cache hit)
-set_llm_cache(RedisSemanticCache(redis_url=REDIS_URL, embeddings=embeddings, distance_threshold=0.1))
 
-async def _build_chain(category: str = None):
+set_llm_cache(
+    RedisSemanticCache(
+        redis_url=REDIS_URL,
+        embeddings =embeddings,
+        distance_threshold = 0.1
+    )
+)
+
+async def _build_chain(category : str = None):
     store = await get_vector_store()
-    search_kwargs = {"k": int(os.getenv("RETRIEVAL_K","5"))}
-
+    search_kwargs={"k": int(os.getenv("RETRIEVAL_K","5"))}
     if category:
         search_kwargs["filter"] = {"category":category}
-
     base_retriever = store.as_retriever(search_kwargs=search_kwargs)
     compressor = CohereRerank(
         top_n = 3,
@@ -55,13 +59,14 @@ async def _build_chain(category: str = None):
         base_retriever=base_retriever,
         base_compressor = compressor
     )
-
-    llm = ChatOpenAI(model="gpt-4o", temperature=0, max_tokens=1000)
-    doc_chain = create_stuff_documents_chain(llm, prompt=PROMPT)
+    llm = ChatOpenAI(model="gpt-4o-mini")
+    doc_chain = create_stuff_documents_chain(llm, PROMPT)
     rag_chain = create_retrieval_chain(retriever, doc_chain)
     return rag_chain
 
-async def answer_with_docs_async(question: str, category: str = None) -> Tuple[str, List[str],List[str]]:
+
+
+async def answer_with_docs_async(question: str,category:str) -> Tuple[str, List[str],List[str]]:
     chain = await _build_chain(category)
     result = await chain.ainvoke({"input": question})
     answer: str = result["answer"]

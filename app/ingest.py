@@ -3,7 +3,10 @@ import os, glob, uuid, asyncio, traceback
 from typing import Iterable, List, Dict, Any
 from pathlib import Path
 
-from langchain_classic.docstore.document import Document
+from dotenv import load_dotenv
+load_dotenv()  # Load .env FIRST, before any LangChain imports
+
+from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import UnstructuredMarkdownLoader, PyMuPDFLoader, UnstructuredWordDocumentLoader,TextLoader
 
