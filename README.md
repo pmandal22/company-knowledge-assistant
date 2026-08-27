@@ -1,21 +1,22 @@
 # Company Knowledge Assistant
 
-A retrieval-augmented generation (RAG) powered knowledge assistant that answers questions about company policies, FAQs, guides, handbooks, and announcements using semantic search and LLM-powered responses.
+A retrieval-augmented generation (RAG) powered knowledge assistant that answers questions about company policies, FAQs, guides, handbooks, and announcements using semantic search and LLM-powered responses. The Starlette service exposes a browser UI, JSON API, and streamable HTTP MCP server.
 
 ## Features
 
 - **Semantic Search**: Uses vector embeddings to find relevant documents from your knowledge base
-- **LLM-Powered Answers**: Leverages OpenAI's language models to generate grounded, context-aware responses
+- **Grounded Answers**: Uses OpenAI embeddings and `gpt-4o-mini` to generate answers from retrieved context
 - **Multi-Source Support**: Ingests PDFs, DOCX, Markdown, and text files from organized data directories
 - **Semantic Caching**: Redis-backed caching with semantic similarity matching to improve performance
 - **Reranking**: Cohere-powered document reranking for improved relevance
 - **Category Filtering**: Filter answers by specific knowledge categories (FAQs, guides, policies, etc.)
-- **Web Interface**: Interactive frontend for asking questions and viewing sources
-- **REST API**: FastAPI backend for programmatic access
+- **Browser Interface**: Interactive frontend for asking questions and viewing sources
+- **JSON API**: Starlette endpoints for programmatic ingestion and retrieval
+- **MCP Server**: Streamable HTTP MCP tools for retrieval and expense-claim actions
 
 ## Prerequisites
 
-- Python 3.12+
+- Python 3.12+ for local development
 - Docker & Docker Compose
 - OpenAI API key
 - Redis (included in Docker Compose)
@@ -47,7 +48,7 @@ DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/postgres
 # Retrieval
 RETRIEVAL_K=5
 
-# Cohere (optional, for reranking)
+# Cohere (required for reranking)
 COHERE_API_KEY=...
 ```
 
@@ -74,7 +75,7 @@ docker-compose up -d
 This will start:
 - **PostgreSQL** (port 5432) - vector database
 - **Redis** (port 6379) - caching layer
-- **FastAPI App** (port 8000) - backend API
+- **Starlette App** (port 8000) - browser UI, JSON API, and MCP server
 
 ### Local Development
 
@@ -95,8 +96,8 @@ Access the web interface at `http://localhost:8000`
 ### GET `/`
 Serves the web interface (SPA).
 
-### GET `/health`
-Health check endpoint.
+### GET `/mcp/health`
+MCP health check endpoint.
 
 ### GET `/categories`
 Returns available knowledge base categories.
@@ -153,14 +154,25 @@ Query the knowledge base.
 **Response:**
 ```json
 {
-  "ok": true,
   "answer": "The VPN setup process involves...",
   "sources": [
-    {"title": "vpn-setup.md", "score": 0.95}
+    "data/guides/vpn-setup.md"
   ],
-  "elapsed": 1.234
+  "contexts": [
+    "Retrieved document content..."
+  ]
 }
 ```
+
+The request must include a non-empty `question`; otherwise the API returns `400 Bad Request`.
+
+## MCP Server
+
+The service exposes a streamable HTTP MCP server at `http://localhost:8000/mcp`. It provides these tools:
+
+- `rag_ask`: answers a question, optionally limited to a knowledge category, and returns the answer, sources, and retrieved contexts
+- `approve`: approves an expense claim
+- `reject`: rejects an expense claim
 
 ## Project Structure
 
@@ -173,11 +185,12 @@ Query the knowledge base.
 ├── docker-compose.yml             # Multi-container setup
 │
 ├── app/                           # Application code
-│   ├── api.py                     # FastAPI application
+│   ├── api.py                     # Starlette routes and MCP server
 │   ├── rag.py                     # RAG chain implementation
 │   ├── ingest.py                  # Document ingestion pipeline
 │   ├── eval_ragas.py              # RAGAS evaluation metrics
 │   ├── flush_cache.py             # Cache management utilities
+│   ├── policy_agent.py             # Expense-claim policy agent
 │   ├── utils.py                   # Helper functions
 │   └── static/                    # Frontend SPA
 │       ├── index.html
@@ -236,7 +249,7 @@ Supported file formats:
 | `REDIS_URL` | Redis connection string | `redis://localhost:6379/0` |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql+psycopg://postgres:postgres@localhost:5432/postgres` |
 | `RETRIEVAL_K` | Number of documents to retrieve | `5` |
-| `COHERE_API_KEY` | Cohere API key for reranking | Optional |
+| `COHERE_API_KEY` | Cohere API key for reranking | Required |
 
 ### RAG Settings
 
@@ -244,27 +257,10 @@ In `app/rag.py`:
 - **Semantic Cache Threshold**: `distance_threshold=0.1` (lower = stricter matching)
 - **System Prompt**: Customizable in the `SYSTEM` variable
 - **Embedding Model**: `text-embedding-3-small`
-- **LLM Model**: `gpt-3.5-turbo` (configurable)
+- **LLM Model**: `gpt-4o-mini`
+- **Reranking Model**: `rerank-multilingual-v3.0`
 
 ## Development
-
-### Running Tests
-
-```bash
-pytest tests/ -v
-```
-
-### Code Quality
-
-Format code:
-```bash
-black app/
-```
-
-Lint:
-```bash
-flake8 app/
-```
 
 ### Evaluation
 
@@ -291,16 +287,16 @@ This occurs after flushing Redis while the app is running. Restart the app to re
 - Verify `pytesseract` is installed for OCR (on macOS: `brew install tesseract`)
 
 ### Slow Responses
-- Increase `RETRIEVAL_K` to retrieve more documents
-- Lower the semantic cache threshold for stricter matches
-- Enable Cohere reranking for better relevance
+- A cache miss performs vector retrieval, Cohere reranking, and an OpenAI generation request
+- Lower `RETRIEVAL_K` to reduce the number of retrieval candidates
+- Keep the semantic cache threshold strict to avoid returning a cached response for an unrelated question
 
 ## Architecture
 
 ```
 User Query
     ↓
-FastAPI Endpoint (/ask)
+Starlette Endpoint (/ask)
     ↓
 Semantic Cache Check (Redis)
     ├─ Hit → Return cached answer
@@ -333,4 +329,4 @@ For issues, questions, or suggestions, please open a GitHub issue or contact the
 
 ---
 
-**Last Updated**: August 2025
+**Last Updated**: August 2027
