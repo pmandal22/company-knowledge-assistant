@@ -65,6 +65,7 @@ async def build_agent(mcp_url: str, model: str = "gpt-4o-mini", temperature: flo
     llm = ChatOpenAI(model=model, temperature=temperature)
     agent = create_agent(model=llm, tools=tools)
     return agent
+
 async def process_claims(agent, data: Dict[str, Any]) -> List[Dict[str, Any]]:
     employee = data.get("employee", {})
     claims: List[Dict[str, Any]] = data.get("claims", [])
